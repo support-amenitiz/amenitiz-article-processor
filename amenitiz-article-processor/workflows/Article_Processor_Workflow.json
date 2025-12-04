@@ -1,0 +1,412 @@
+{
+  "name": "Article Processor - Simple Webhook",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "article-processor",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        400
+      ],
+      "webhookId": "1dee9280-7d3b-4ab4-b846-65ddcb03b385"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.body.mode }}",
+              "operation": "equals",
+              "value2": "merge"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "check-mode",
+      "name": "Check if Merge",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        464,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const text = $input.item.json.message.content;\nconst originalTitle = $('Webhook Trigger').item.json.body.title;\n\n// Extract English content (between ENGLISH: and FRENCH:)\nconst englishMatch = text.match(/ENGLISH:\\s*([\\s\\S]*?)(?=FRENCH:|$)/);\nconst englishContent = englishMatch ? englishMatch[1].trim() : '';\n\n// Extract translations\nconst frenchMatch = text.match(/FRENCH:\\s*([\\s\\S]*?)(?=ITALIAN:|$)/);\nconst italianMatch = text.match(/ITALIAN:\\s*([\\s\\S]*?)(?=SPANISH:|$)/);\nconst spanishMatch = text.match(/SPANISH:\\s*([\\s\\S]*?)(?=PORTUGUESE:|$)/);\nconst portugueseMatch = text.match(/PORTUGUESE:\\s*([\\s\\S]*?)$/);\n\n// Validate that we have content\nif (!englishContent) {\n  throw new Error('Failed to extract English content. GPT may not have followed the format.');\n}\n\nreturn {\n  title: originalTitle,\n  body_en: englishContent,\n  body_fr: frenchMatch ? frenchMatch[1].trim() : '',\n  body_it: italianMatch ? italianMatch[1].trim() : '',\n  body_es: spanishMatch ? spanishMatch[1].trim() : '',\n  body_pt: portugueseMatch ? portugueseMatch[1].trim() : ''\n};"
+      },
+      "id": "parse-translations",
+      "name": "Parse Translations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.intercom.io/articles",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBearerAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Intercom-Version",
+              "value": "2.11"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "title",
+              "value": "={{ $json.requestBody.title }}"
+            },
+            {
+              "name": "body",
+              "value": "={{ $json.requestBody.body }}"
+            },
+            {
+              "name": "state",
+              "value": "draft"
+            },
+            {
+              "name": "author_id",
+              "value": "50046499"
+            },
+            {
+              "name": "translated_content",
+              "value": "={{ $json.requestBody }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "create-intercom",
+      "name": "Create in Intercom",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        1824,
+        400
+      ],
+      "credentials": {
+        "intercomApi": {
+          "id": "8yaYWpWIlMvL5GRV",
+          "name": "Intercom account"
+        },
+        "httpBearerAuth": {
+          "id": "b1PnjeHAI2vGV5dV",
+          "name": "Intercom"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"success\": true,\n  \"message\": \"Article created successfully\",\n  \"intercomUrl\": \"https://app.intercom.com/a/apps/\" + $json.id,\n  \"articleId\": $json.id\n} }}",
+        "options": {}
+      },
+      "id": "webhook-response",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2048,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are the Amenitiz Help Centre Article Merging & Improvement Assistant.\n\n# YOUR MISSION\nMerge multiple Help Centre articles into ONE comprehensive, well-structured article that follows the Amenitiz standard template.\n\n# STANDARD ARTICLE TEMPLATE\nYou must ALWAYS output articles with this exact structure:\n\n**SEO Description** (max 255 characters, British English, no formatting, concise summary for search engines)\n\n## Overview\n(Brief explanation of what the article covers, when it's useful, and why it matters to hoteliers)\n\n## Before you start\n(Only if needed - prerequisites, required permissions, account settings, limitations, or preparation steps)\n\n## Step-by-step instructions\n1. [Step begins with an action verb - e.g., \"Navigate to...\", \"Click on...\", \"Select...\"]\n2. [Next action with clear, specific details]\n3. [Continue with numbered steps]\n   - Use sub-bullets for clarifications or options\n   - Include visual indicators (e.g., → for navigation paths)\n4. [Final step with expected outcome]\n\n## Troubleshooting / FAQs\n- **[Common issue or question]** — [Clear solution or answer]\n- **[Edge case or error]** — [How to resolve it]\n- **[Limitation]** — [What users should know]\n\n## Related articles\n- [Link to related article 1]\n- [Link to related article 2]\n- [Link to related article 3] (optional)\n\n# STYLE & TONE RULES\n✦ **British English** spelling and phrasing throughout (e.g., \"colour\", \"organise\", \"analyse\")\n✦ **Simple, clear, helpful, factual** language - write for busy hoteliers\n✦ **NO EMOJIS** under any circumstance - this is a professional Help Centre\n✦ **No marketing language** - no fluff, no sales pitch, no hype\n✦ **Short paragraphs** (2-4 sentences maximum)\n✦ **Scannable format** - use headings, bullet points, and numbered lists\n✦ **Direct and concise** - respect the reader's time\n\n# CRITICAL TERMINOLOGY (Amenitiz Vocabulary)\n✦ **Guest** = person staying at or booking the property (NEVER \"customer\" unless in original context)\n✦ **Buyer** = person purchasing a gift card\n✦ **Recipient** = person receiving a gift card\n✦ **→** (arrow icon) = use for navigation paths (e.g., \"Settings → Pricing → Room rates\")\n✦ **Property** = the hotel/accommodation (not \"hotel\" unless specific)\n✦ **Booking Engine** = Amenitiz's direct booking system\n✦ **Channel Manager** = OTA connection system\n✦ **PMS** = Property Management System (Amenitiz's core system)\n\n# MERGE STRATEGY\nWhen merging multiple articles:\n\n1. **Remove duplicates** - if multiple articles explain the same step, keep the clearest version\n2. **Remove outdated content** - eliminate deprecated features or old workflows\n3. **Combine best troubleshooting** - merge all FAQs and troubleshooting sections\n4. **One clear job-to-be-done** - the merged article should have one focused purpose\n5. **Maintain full template structure** - every section must be present (even if \"Before you start\" says \"No prerequisites\")\n6. **Preserve all working features** - don't lose any functional information\n7. **Consolidate related steps** - group similar actions together logically\n8. **Keep all edge cases** - preserve important warnings, limitations, and special cases\n\n# OUTPUT REQUIREMENTS\n✦ The merged article must be **complete and ready to publish**\n✦ Do NOT include meta-commentary like \"Here's the merged article\" or \"I've combined...\"\n✦ Start directly with the SEO Description\n✦ Do NOT invent features that weren't in the original articles\n✦ Preserve technical accuracy - if you're unsure about a feature, keep the original wording\n✦ Do NOT add placeholder text like \"[Add screenshot]\" - only include what's in the originals",
+              "role": "system"
+            },
+            {
+              "content": "={{ \"# ARTICLES TO MERGE\\n\\n**Article Title:** \" + $json.body.title + \"\\n**Category:** \" + $json.body.category + \"\\n**Subcategory:** \" + $json.body.subcategory + \"\\n\\n\" + $json.body.articles.map((article, index) => \"**ARTICLE \" + (index + 1) + \":**\\n\" + article).join(\"\\n\\n\") + ($json.body.customInstructions ? \"\\n\\n# CUSTOM INSTRUCTIONS\\n\" + $json.body.customInstructions : \"\") + \"\\n\\n# YOUR TASK\\nMerge the above articles into ONE comprehensive Help Centre article following the standard template.\" + ($json.body.customInstructions ? \" Pay special attention to the custom instructions above.\" : \"\") + \"\\n\\nProvide the COMPLETE merged article now, starting with the SEO Description.\" }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        688,
+        304
+      ],
+      "id": "b3794dff-82bb-47c2-9592-da2dc00896a8",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "iy6A9YYU3zJhGCg8",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are the Amenitiz Help Centre Article Improvement Assistant.\n\n# YOUR MISSION\nImprove Help Centre articles to meet Amenitiz's high standards for clarity, accuracy, and user-friendliness.\n\n# STANDARD ARTICLE TEMPLATE\nEvery article must follow this exact structure:\n\n**SEO Description** (max 255 characters, British English, no formatting, concise summary for search engines)\n\n## Overview\n(Brief explanation: what this article covers, when it's useful, why it matters to hoteliers)\n\n## Before you start\n(Only include if there are actual prerequisites, permissions needed, or preparation required. If none, write: \"No prerequisites required.\")\n\n## Step-by-step instructions\n1. [Action verb first - \"Navigate to...\", \"Click...\", \"Select...\"]\n2. [Next clear action with specific details]\n3. [Continue with numbered steps]\n   - Use sub-bullets for options or clarifications\n   - Use → for navigation paths (e.g., \"Dashboard → Settings → Pricing\")\n4. [Final step with expected outcome]\n\n## Troubleshooting / FAQs\n- **[Common issue or question]** — [Clear, actionable solution]\n- **[Edge case or limitation]** — [What to know or do]\n- **[Potential error]** — [How to resolve]\n\n## Related articles\n- [Related article 1 - logical connection to current topic]\n- [Related article 2 - next step or related feature]\n- [Related article 3 - optional, if relevant]\n\n# STYLE & TONE REQUIREMENTS\n\n**Language:**\n✦ British English spelling (colour, organise, analyse, centre)\n✦ Simple, clear, direct - no jargon unless necessary\n✦ Professional but approachable - like an expert colleague helping\n\n**What to AVOID:**\n✦ NO EMOJIS whatsoever (❌ 😊 ✅ 🎉 🚀 - none of these!)\n✦ No marketing language or hype\n✦ No unnecessary adjectives (\"amazing\", \"great\", \"super\")\n✦ No vague instructions (\"simply\", \"just\", \"easily\")\n✦ No assumptions about user knowledge\n\n**What to INCLUDE:**\n✦ Specific button names, menu locations, field labels\n✦ Expected outcomes (\"You'll see...\", \"The system will...\")\n✦ Visual indicators (→ for navigation, quotes for exact text)\n✦ Warnings for destructive actions (\"Note: This cannot be undone\")\n\n# AMENITIZ TERMINOLOGY (CRITICAL)\n\n**Use these terms consistently:**\n✦ **Guest** = person staying at or booking the property (default term)\n✦ **Property** = the hotel/accommodation (neutral term)\n✦ **Booking Engine** = Amenitiz's direct booking system\n✦ **Channel Manager** = OTA connection system\n✦ **PMS** = Property Management System (Amenitiz)\n✦ **→** = navigation path indicator (\"Settings → Pricing\")\n\n# OUTPUT REQUIREMENTS\n\n✦ Output the COMPLETE improved article\n✦ Start directly with SEO Description (no preamble)\n✦ Do NOT add meta-commentary (\"Here's the improved version...\")\n✦ Do NOT include placeholders like \"[Add screenshot]\"\n✦ Keep all accurate technical information from original\n✦ Article must be ready to publish immediately",
+              "role": "system"
+            },
+            {
+              "content": "={{ \"# ARTICLE TO IMPROVE\\n\\n**Article Title:** \" + $json.body.title + \"\\n**Category:** \" + $json.body.category + \"\\n**Subcategory:** \" + $json.body.subcategory + \"\\n\\n**Current Article Content:**\\n\" + $json.body.articles[0] + ($json.body.customInstructions ? \"\\n\\n# CUSTOM INSTRUCTIONS\\n\" + $json.body.customInstructions : \"\") + \"\\n\\n# YOUR TASK\\nImprove this article to meet Amenitiz standards following the template above.\" + ($json.body.customInstructions ? \" Pay special attention to the custom instructions above.\" : \"\") + \"\\n\\nProvide the COMPLETE improved article now, starting with the SEO Description.\" }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        688,
+        496
+      ],
+      "id": "2a43f1ca-d7d5-42ff-a9c0-d27c2a9afa3a",
+      "name": "Message a model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "iy6A9YYU3zJhGCg8",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "You are the Amenitiz Translation Assistant.\n\n# MISSION\nFirst output the English article with BEAUTIFUL HTML formatting (like a professional Intercom article), then translate to French, Italian, Spanish, and European Portuguese.\n\n# FORMALITY RULES\n**FRENCH:** Use \"vous\" (formal)\n**ITALIAN:** Use \"tu\" (informal)\n**SPANISH:** Use \"tú\" (informal)\n**PORTUGUESE:** Use \"você\" (formal, European)\n\n# KEY TERMS\n| English | French | Italian | Spanish | Portuguese |\n|---------|--------|---------|---------|------------|\n| Guest | Client | Ospite | Huésped | Hóspede |\n| Property | Établissement | Struttura | Establecimiento | Estabelecimento |\n| Booking | Réservation | Prenotazione | Reserva | Reserva |\n| Dashboard | Tableau de bord | Dashboard | Panel | Painel |\n| Settings | Paramètres | Impostazioni | Configuración | Definições |\n\n# HTML FORMATTING RULES\n\n## STRUCTURE:\n1. **SEO Description** (max 255 chars) → <p><strong>Description here</strong></p>\n2. **Spacing** → <p>&nbsp;</p> between ALL sections\n3. **Section Headings** → <h2>Section Title</h2>\n4. **Paragraphs** → <p>Text content</p>\n5. **Lists**:\n   - Numbered: <ol><li>Step 1</li><li>Step 2</li></ol>\n   - Bulleted: <ul><li>Item 1</li><li>Item 2</li></ul>\n6. **Bold** → <strong>text</strong>\n7. **Italic** → <em>text</em>\n\n## CALLOUT BOXES (use these for important info):\n\n**Example box** (gray background):\n<div style=\"background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 15px 0;\">\n<p><strong>Example</strong></p>\n<p>Example content here</p>\n</div>\n\n**Tip box** (green background):\n<div style=\"background-color: #e8f5e9; padding: 15px; border-radius: 5px; margin: 15px 0;\">\n<p>💡 <strong>Tip</strong></p>\n<p>Tip content here</p>\n</div>\n\n**Note box** (yellow background):\n<div style=\"background-color: #fff9c4; padding: 15px; border-radius: 5px; margin: 15px 0;\">\n<p><strong>Note</strong></p>\n<p>Note content here</p>\n</div>\n\n**Warning box** (red background):\n<div style=\"background-color: #ffebee; padding: 15px; border-radius: 5px; margin: 15px 0;\">\n<p>⚠️ <strong>Warning</strong></p>\n<p>Warning content here</p>\n</div>\n\n**Important box** (blue background):\n<div style=\"background-color: #e3f2fd; padding: 15px; border-radius: 5px; margin: 15px 0;\">\n<p><strong>Important</strong></p>\n<p>Important content here</p>\n</div>\n\n## WHEN TO USE CALLOUTS:\n- 💡 **Tip** = Helpful shortcuts, best practices\n- 📔 **Note** = Additional information, context\n- ⚠️ **Warning** = Potential issues, destructive actions\n- ℹ️ **Important** = Critical requirements, prerequisites\n- **Example** = Real-world examples, sample values\n\n## SPACING & READABILITY:\n- Add <p>&nbsp;</p> between EVERY major section\n- Use <p>&nbsp;</p> after callout boxes\n- Space out numbered lists from text\n\n## PRESERVE:\n✦ Technical terms: PMS, OTA, API, URL\n✦ Brand names: Amenitiz, Booking.com, Airbnb\n✦ Navigation paths: Settings → Pricing\n\n# OUTPUT FORMAT\nYou MUST output in this EXACT format:\n\nENGLISH:\n[Complete article in beautiful HTML]\n\nFRENCH:\n[Complete translation in beautiful HTML]\n\nITALIAN:\n[Complete translation in beautiful HTML]\n\nSPANISH:\n[Complete translation in beautiful HTML]\n\nPORTUGUESE:\n[Complete translation in beautiful HTML]\n\n# SECTION HEADERS (translate):\n- \"Overview\" → \"Aperçu\" (FR), \"Panoramica\" (IT), \"Descripción general\" (ES), \"Visão geral\" (PT)\n- \"Before you start\" → \"Avant de commencer\" (FR), \"Prima di iniziare\" (IT), \"Antes de empezar\" (ES), \"Antes de começar\" (PT)\n- \"Step-by-step instructions\" → \"Instructions étape par étape\" (FR), \"Istruzioni passo passo\" (IT), \"Instrucciones paso a paso\" (ES), \"Instruções passo a passo\" (PT)\n- \"Troubleshooting / FAQs\" → \"Dépannage / FAQ\" (FR), \"Risoluzione problemi / FAQ\" (IT), \"Solución de problemas / FAQ\" (ES), \"Resolução de problemas / FAQ\" (PT)\n- \"Related articles\" → \"Articles connexes\" (FR), \"Articoli correlati\" (IT), \"Artículos relacionados\" (ES), \"Artigos relacionados\" (PT)\n\n# COMPLETE EXAMPLE:\n<p><strong>Learn how to manage gift cards in your Booking Engine with step-by-step instructions.</strong></p>\n<p>&nbsp;</p>\n<h2>Overview</h2>\n<p>Gift cards allow buyers to purchase vouchers that recipients can redeem on your Booking Engine. This article explains the setup process and management options.</p>\n<p>&nbsp;</p>\n<h2>Before you start</h2>\n<p>You must have admin permissions to access gift card settings in your PMS.</p>\n<div style=\"background-color: #e3f2fd; padding: 15px; border-radius: 5px; margin: 15px 0;\">\n<p><strong>Important</strong></p>\n<p>Your Booking Engine must be published and accessible to guests before enabling gift cards.</p>\n</div>\n<p>&nbsp;</p>\n<h2>Step-by-step instructions</h2>\n<ol>\n<li>Navigate to Settings → Booking Engine → Gift Cards</li>\n<li>Click \"Enable Gift Cards\"</li>\n<li>Configure the following options:\n<ul>\n<li>Card amount (or predefined packages)</li>\n<li>Expiration date</li>\n<li>Redemption conditions</li>\n</ul>\n</li>\n<li>Click \"Save\"</li>\n</ol>\n<div style=\"background-color: #e8f5e9; padding: 15px; border-radius: 5px; margin: 15px 0;\">\n<p>💡 <strong>Tip</strong></p>\n<p>Enable email notifications so recipients receive their gift card codes automatically.</p>\n</div>\n<p>&nbsp;</p>\n<h2>Troubleshooting / FAQs</h2>\n<ul>\n<li><strong>How do guests redeem gift cards?</strong> — They enter the code at checkout in the Booking Engine.</li>\n<li><strong>Can gift cards be refunded?</strong> — No, gift card purchases are non-refundable.</li>\n</ul>\n<div style=\"background-color: #ffebee; padding: 15px; border-radius: 5px; margin: 15px 0;\">\n<p>⚠️ <strong>Warning</strong></p>\n<p>Disabling gift cards will prevent new purchases, but existing cards remain valid.</p>\n</div>\n<p>&nbsp;</p>\n<h2>Related articles</h2>\n<ul>\n<li>How to set up your Booking Engine</li>\n<li>Managing payments and deposits</li>\n</ul>",
+              "role": "system"
+            },
+            {
+              "content": "=Convert this markdown article to BEAUTIFUL HTML (with callout boxes where appropriate) and translate:\n\n---\n{{ $json.message.content }}\n---\n\nProvide ENGLISH first (in beautiful HTML with callouts), then all 4 translations (also in beautiful HTML) in the exact format:\n\nENGLISH:\n[complete article in beautiful HTML with spacing and callout boxes]\n\nFRENCH:\n[complete translation in beautiful HTML]\n\nITALIAN:\n[complete translation in beautiful HTML]\n\nSPANISH:\n[complete translation in beautiful HTML]\n\nPORTUGUESE:\n[complete translation in beautiful HTML]"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1040,
+        400
+      ],
+      "id": "bf9e3d09-6af1-481a-af22-ebcc697c704d",
+      "name": "Message a model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "iy6A9YYU3zJhGCg8",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.item.json;\n\nreturn {\n  json: {\n    requestBody: {\n      title: item.title,\n      body: item.body_en,\n      state: 'draft',\n      translated_content: {\n        fr: {\n          type: 'article_content',\n          title: item.title,\n          body: item.body_fr,\n          state: 'draft'\n        },\n        it: {\n          type: 'article_content',\n          title: item.title,\n          body: item.body_it,\n          state: 'draft'\n        },\n        es: {\n          type: 'article_content',\n          title: item.title,\n          body: item.body_es,\n          state: 'draft'\n        },\n        pt: {\n          type: 'article_content',\n          title: item.title,\n          body: item.body_pt,\n          state: 'draft'\n        }\n      }\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        400
+      ],
+      "id": "51cffd3b-9fe0-4026-bf00-0f212f633764",
+      "name": "Code"
+    }
+  ],
+  "pinData": {
+    "Webhook Trigger": [
+      {
+        "json": {
+          "headers": {
+            "host": "n8n.srv992221.hstgr.cloud",
+            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36",
+            "content-length": "3180",
+            "accept": "*/*",
+            "accept-encoding": "gzip, deflate, br, zstd",
+            "accept-language": "en,fr;q=0.9",
+            "content-type": "application/json",
+            "origin": "null",
+            "priority": "u=1, i",
+            "sec-ch-ua": "\"Chromium\";v=\"142\", \"Google Chrome\";v=\"142\", \"Not_A Brand\";v=\"99\"",
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "\"macOS\"",
+            "sec-fetch-dest": "empty",
+            "sec-fetch-mode": "cors",
+            "sec-fetch-site": "cross-site",
+            "x-forwarded-for": "79.153.3.104",
+            "x-forwarded-host": "n8n.srv992221.hstgr.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "c26d24a48038",
+            "x-real-ip": "79.153.3.104"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "mode": "improve",
+            "title": "GIFT CARD TEST ",
+            "category": "GISF CARD",
+            "subcategory": "GIFT",
+            "articles": [
+              "\nHow to buy and use gift cards\nWhen gift cards are created, the clients are then able to buy them on the booking engine. This article explains you how clients can buy the gift cards, and how to use them.\n\n \n\nBuying a gift card\nGift cards can be bought on the booking engine only, here is an example of the path to purchase on the booking engine:\n​\n\npath_to_purchasegif.gif\n\nThe customer who buys a gift card will have the possibility to send it directly to a friend, by email. This is what it will look like:\n​\n\nScreenshot 2024-01-31 at 08.53.00.png\n\nWith each purchase, the payer will receive a confirmation email for the gift card and payment (with a reminder of the card amount and expiration date) and, if applied, a copy of the email to the recipient of the gift card containing all the information necessary to use the card.\n​\nOnce the gift card has been bought, you will receive it on your Amenitiz extranet, in the section > Reservations > Gift Cards:\n\nFrom this section, you can find your current gift cards. By clicking on \"details\" you will have access to the updated information of the gift card (validity date, remaining amount), as well as the reservation(s) on which the gift card has been used:\n​\n\n\n\nOnce the total amount of the card has been used up, it will no longer appear in the Reservations > Gift Cards tab.\n​\n\nUsing a gift card\nThere are two ways to use a gift card, the receiver can use it on the booking engine by entering the code of the gift card:\n​\n\npath_to_use.gif\n \n\nA customer can use the gift card on several bookings\n\n \n\nThe owner can also register a gift card payment on a booking, by simply going to the \"Payments\" section of the booking details, clicking on \"Log payment\", selecting the payment method \"Client voucher\" and entering the code of the gift card received by e-mail. it is useful in case your client is calling you to book a stay with a gift card.\n​\n​\n\nTerms, conditions, and payment\n​\n- For the customer: once the gift card has been purchased, it cannot be refunded. The amount of the card cannot be updated. It is not possible to combine multiple gift cards for the same reservation.\n​\n- When an unused card reaches its expiry date, the amount is no longer valid and no refund can be made. You have indeed the possibility to change the validity period of a specific gift card going into the client sheet, in vouchers > edit voucher:\n​\n\nScreenshot_2021-09-17_at_16.30.10.png\n\n- You can modify gift card settings for future cards without affecting already purchased ones. For example, increasing the amount of a \"Valentine's Day\" gift card will only apply to future purchases, not past ones.\n​​\n- If a reservation exceeds the gift card balance, the remaining amount can be paid using available payment methods\n​\n- If card-only payment is accepted, the payment sales terms will apply. Generating an invoice from a gift card will have 0% VAT and no additional items can be added since it's a paid invoice.\n\n"
+            ],
+            "customInstructions": null
+          },
+          "webhookUrl": "https://n8n.srv992221.hstgr.cloud/webhook/article-processor",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Check if Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if Merge": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Translations": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create in Intercom": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Message a model2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "Message a model2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model2": {
+      "main": [
+        [
+          {
+            "node": "Parse Translations",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Create in Intercom",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "executionOrder": "v1"
+  },
+  "versionId": "b9a5f751-f8df-4c59-88f8-ef09c25d70a8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7fc13fd0bcf7b73b7438f93409d31066571fdab3d1c9278b73860374ac6d6c2c"
+  },
+  "id": "O18duWx02JWGK5g1",
+  "tags": []
+}

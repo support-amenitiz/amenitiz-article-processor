@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Amenitiz Article Processor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 3rem;
+        }
+        
+        h1 {
+            font-size: 2rem;
+            color: #1a202c;
+            margin-bottom: 0.5rem;
+        }
+        
+        .subtitle {
+            color: #718096;
+            margin-bottom: 2rem;
+            font-size: 1rem;
+        }
+        
+        .form-section {
+            margin-bottom: 1.5rem;
+        }
+        
+        label {
+            display: block;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .mode-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .mode-button {
+            flex: 1;
+            padding: 1rem;
+            border: 2px solid #e2e8f0;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            font-size: 1rem;
+            font-weight: 500;
+            color: #4a5568;
+        }
+        
+        .mode-button:hover {
+            border-color: #cbd5e0;
+        }
+        
+        .mode-button.active {
+            border-color: #667eea;
+            background: #eef2ff;
+            color: #667eea;
+        }
+        
+        .icon {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        input[type="text"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            transition: border-color 0.2s;
+            font-family: inherit;
+        }
+        
+        input[type="text"]:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        textarea {
+            resize: vertical;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+        }
+        
+        .char-count {
+            text-align: right;
+            font-size: 0.75rem;
+            color: #a0aec0;
+            margin-top: 0.25rem;
+        }
+        
+        .submit-button {
+            width: 100%;
+            padding: 1rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        
+        .submit-button:hover:not(:disabled) {
+            background: #5a67d8;
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .submit-button:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+        }
+        
+        .spinner {
+            border: 2px solid #f3f4f6;
+            border-top: 2px solid white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .result-message {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            font-size: 0.875rem;
+        }
+        
+        .result-message.success {
+            background: #f0fdf4;
+            border: 2px solid #86efac;
+            color: #166534;
+        }
+        
+        .result-message.error {
+            background: #fef2f2;
+            border: 2px solid #fca5a5;
+            color: #991b1b;
+        }
+        
+        .result-message a {
+            color: #667eea;
+            text-decoration: underline;
+            font-weight: 600;
+        }
+        
+        .info-box {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 2rem;
+        }
+        
+        .info-box h3 {
+            color: #1e40af;
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .info-box ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        
+        .info-box li {
+            color: #1e3a8a;
+            font-size: 0.8rem;
+            margin-bottom: 0.25rem;
+            padding-left: 1rem;
+            position: relative;
+        }
+        
+        .info-box li:before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            font-weight: bold;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Amenitiz Help Center Processor</h1>
+        <p class="subtitle">Merge or improve articles, translate to 4 languages, and publish to Intercom</p>
+        
+        <form id="articleForm">
+            <!-- Mode Selection -->
+            <div class="form-section">
+                <label>Processing Mode</label>
+                <div class="mode-buttons">
+                    <button type="button" class="mode-button active" data-mode="improve">
+                        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Improve Article
+                    </button>
+                    <button type="button" class="mode-button" data-mode="merge">
+                        <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                        Merge Articles (up to 5)
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Number of Articles (only for merge) -->
+            <div class="form-section hidden" id="articleCountSection">
+                <label for="articleCount">How many articles to merge?</label>
+                <select id="articleCount">
+                    <option value="2">2 articles</option>
+                    <option value="3">3 articles</option>
+                    <option value="4">4 articles</option>
+                    <option value="5">5 articles</option>
+                </select>
+            </div>
+            
+            <!-- Custom Instructions -->
+            <div class="form-section">
+                <label for="customInstructions">Custom Instructions for GPT (optional)</label>
+                <textarea id="customInstructions" rows="3" placeholder="e.g., The second article should be transformed into FAQ format, Focus on beginner users, Add more troubleshooting examples..."></textarea>
+                <div class="char-count"><span id="customCount">0</span> characters</div>
+            </div>
+            
+            <!-- Metadata -->
+            <div class="metadata-grid">
+                <div class="form-section">
+                    <label for="title">Article Title *</label>
+                    <input type="text" id="title" placeholder="How to..." required>
+                </div>
+                <div class="form-section">
+                    <label for="category">Category *</label>
+                    <input type="text" id="category" placeholder="e.g., Bookings" required>
+                </div>
+                <div class="form-section">
+                    <label for="subcategory">Subcategory</label>
+                    <input type="text" id="subcategory" placeholder="e.g., Calendar">
+                </div>
+            </div>
+            
+            <!-- Article 1 -->
+            <div class="form-section">
+                <label for="article1">
+                    <span id="article1Label">Article Content</span> *
+                </label>
+                <textarea id="article1" rows="12" placeholder="Paste the article content here..." required></textarea>
+                <div class="char-count"><span id="article1Count">0</span> characters</div>
+            </div>
+            
+            <!-- Article 2-5 (for merge only) -->
+            <div id="additionalArticles"></div>
+            
+            <!-- Submit Button -->
+            <button type="submit" class="submit-button" id="submitButton">
+                <svg class="icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                </svg>
+                <span id="buttonText">Improve & Translate</span>
+            </button>
+            
+            <!-- Result Message -->
+            <div id="resultMessage" class="result-message hidden"></div>
+        </form>
+        
+        <!-- Info Box -->
+        <div class="info-box">
+            <h3>How it works:</h3>
+            <ul>
+                <li><strong>Improve:</strong> Enhances a single article following Amenitiz standards</li>
+                <li><strong>Merge:</strong> Combines 2-5 articles into one comprehensive guide</li>
+                <li><strong>Custom Instructions:</strong> Add special requirements (e.g., "Transform into FAQ format")</li>
+                <li>Automatically translates to French, Italian, Spanish, Portuguese</li>
+                <li>Creates draft articles in Intercom with all 5 languages linked</li>
+                <li>Typical processing time: 60-120 seconds (longer for merging multiple articles)</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Your n8n webhook URL
+        const WEBHOOK_URL = 'https://n8n.srv992221.hstgr.cloud/webhook/article-processor';
+        
+        // State
+        let currentMode = 'improve';
+        let articleCount = 2;
+        
+        // Elements
+        const modeButtons = document.querySelectorAll('.mode-button');
+        const article1 = document.getElementById('article1');
+        const article1Count = document.getElementById('article1Count');
+        const article1Label = document.getElementById('article1Label');
+        const articleCountSection = document.getElementById('articleCountSection');
+        const articleCountSelect = document.getElementById('articleCount');
+        const additionalArticles = document.getElementById('additionalArticles');
+        const customInstructions = document.getElementById('customInstructions');
+        const customCount = document.getElementById('customCount');
+        const submitButton = document.getElementById('submitButton');
+        const buttonText = document.getElementById('buttonText');
+        const resultMessage = document.getElementById('resultMessage');
+        const form = document.getElementById('articleForm');
+        
+        // Create additional article sections dynamically
+        function updateArticleSections() {
+            additionalArticles.innerHTML = '';
+            
+            if (currentMode === 'merge') {
+                for (let i = 2; i <= articleCount; i++) {
+                    const section = document.createElement('div');
+                    section.className = 'form-section';
+                    section.innerHTML = `
+                        <label for="article${i}">Article ${i} (To Merge) *</label>
+                        <textarea id="article${i}" rows="12" placeholder="Paste article ${i} content..." required></textarea>
+                        <div class="char-count"><span id="article${i}Count">0</span> characters</div>
+                    `;
+                    additionalArticles.appendChild(section);
+                    
+                    // Add character counter
+                    const textarea = document.getElementById(`article${i}`);
+                    const counter = document.getElementById(`article${i}Count`);
+                    textarea.addEventListener('input', () => {
+                        counter.textContent = textarea.value.length;
+                    });
+                }
+            }
+        }
+        
+        // Mode switching
+        modeButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                const mode = button.dataset.mode;
+                currentMode = mode;
+                
+                // Update button states
+                modeButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                // Update UI
+                if (mode === 'merge') {
+                    article1Label.textContent = 'Article 1 (Main)';
+                    articleCountSection.classList.remove('hidden');
+                    buttonText.textContent = 'Merge & Translate';
+                    updateArticleSections();
+                } else {
+                    article1Label.textContent = 'Article Content';
+                    articleCountSection.classList.add('hidden');
+                    additionalArticles.innerHTML = '';
+                    buttonText.textContent = 'Improve & Translate';
+                }
+            });
+        });
+        
+        // Article count change
+        articleCountSelect.addEventListener('change', (e) => {
+            articleCount = parseInt(e.target.value);
+            updateArticleSections();
+        });
+        
+        // Character counters
+        article1.addEventListener('input', () => {
+            article1Count.textContent = article1.value.length;
+        });
+        
+        customInstructions.addEventListener('input', () => {
+            customCount.textContent = customInstructions.value.length;
+        });
+        
+        // Form submission
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Disable button
+            submitButton.disabled = true;
+            buttonText.textContent = 'Processing...';
+            const spinner = document.createElement('div');
+            spinner.className = 'spinner';
+            submitButton.prepend(spinner);
+            resultMessage.classList.add('hidden');
+            
+            // Collect all articles
+            const articles = [article1.value];
+            if (currentMode === 'merge') {
+                for (let i = 2; i <= articleCount; i++) {
+                    const textarea = document.getElementById(`article${i}`);
+                    if (textarea && textarea.value) {
+                        articles.push(textarea.value);
+                    }
+                }
+            }
+            
+            // Prepare payload
+            const payload = {
+                mode: currentMode,
+                title: document.getElementById('title').value,
+                category: document.getElementById('category').value,
+                subcategory: document.getElementById('subcategory').value,
+                articles: articles,
+                customInstructions: customInstructions.value || null
+            };
+            
+            try {
+                const response = await fetch(WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload)
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    // Success
+                    resultMessage.className = 'result-message success';
+                    resultMessage.innerHTML = `
+                        <strong>✓ Article processed successfully!</strong><br>
+                        ${data.intercomUrl ? `<a href="${data.intercomUrl}" target="_blank">View article in Intercom →</a>` : ''}
+                    `;
+                    resultMessage.classList.remove('hidden');
+                    
+                    // Clear form
+                    form.reset();
+                    article1Count.textContent = '0';
+                    customCount.textContent = '0';
+                    if (currentMode === 'merge') {
+                        updateArticleSections();
+                    }
+                } else {
+                    // Error from server
+                    throw new Error(data.message || 'Processing failed');
+                }
+            } catch (error) {
+                // Error
+                resultMessage.className = 'result-message error';
+                resultMessage.innerHTML = `
+                    <strong>✗ Error:</strong> ${error.message}<br>
+                    <small>Check that your n8n workflow is active and the webhook URL is correct.</small>
+                `;
+                resultMessage.classList.remove('hidden');
+            } finally {
+                // Re-enable button
+                submitButton.disabled = false;
+                submitButton.removeChild(spinner);
+                buttonText.textContent = currentMode === 'merge' ? 'Merge & Translate' : 'Improve & Translate';
+            }
+        });
+    </script>
+</body>
+</html>
